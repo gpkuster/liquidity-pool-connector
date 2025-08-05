@@ -34,7 +34,9 @@ jobs:
           forge build --sizes
         id: build
 
-      - name: Run Forge tests
+      - name: Run tests with fork URL
+        env:
+          FORK_URL: ${{secrets.FORK_URL}}
         run: |
-          forge test -vvv
+          forge test --fork-url $FORK_URL
         id: test
