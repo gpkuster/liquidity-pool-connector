@@ -9,15 +9,17 @@ import "../src/SwapApp.sol";
 contract SwapAppTest is Test {
     SwapApp app;
 
-    address uniswapV2SwapRouterAddress = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
-    address uniswapV2SwapFactoryAddress = 0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9;
-    address user = 0xB45323118e29e3C33c4a906dD8ce9d9CF443D380; // Address with USDT on Arbitrum Mainnet
-    address USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
-    address DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+    address public constant uniswapV2SwapRouterAddress = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
+    address public constant uniswapV3SwapRouterAddress = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address public constant uniswapV2SwapFactoryAddress = 0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9;
+    address public constant user = 0xB45323118e29e3C33c4a906dD8ce9d9CF443D380; // Address with USDT on Arbitrum Mainnet
+    address public constant USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
+    address public constant DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
 
     /// @notice Deploys the SwapApp contract before each test using a forked network
     function setUp() public {
-        app = new SwapApp(uniswapV2SwapRouterAddress, uniswapV2SwapFactoryAddress, USDT, DAI);
+        app =
+            new SwapApp(uniswapV2SwapRouterAddress, uniswapV3SwapRouterAddress, uniswapV2SwapFactoryAddress, USDT, DAI);
     }
 
     /// @notice Verifies that the contract is deployed with the correct router address
@@ -115,7 +117,52 @@ contract SwapAppTest is Test {
         assertApproxEqAbs(amountA, expectedA, toleranceA, "amountA out of range");
         assertApproxEqAbs(amountB, expectedB, toleranceB, "amountB out of range");
 
-
         vm.stopPrank();
+    }
+
+    /// @notice Tests a successful token swap on Uniswap V3 from USDT to DAI
+    function testSwapTokensV3HappyPath() public {
+        deal(USDT, user, 100 * 1e6);
+        uint256 amountIn_ = 100e6; // 100 USDT
+        uint256 amountOutMin_ = 1e18; // 1 DAI minimum
+        uint256 deadline_ = block.timestamp + 1 hours;
+
+        address[] memory path_ = new address[](2);
+        path_[0] = USDT;
+        path_[1] = DAI;
+
+        // Approve the contract to spend user's tokens
+        vm.prank(user);
+        IERC20(USDT).approve(address(app), amountIn_);
+
+        // Execute swap
+        vm.prank(user);
+        uint256 amountOut = app.swapTokensV3(amountIn_, amountOutMin_, path_, user, deadline_);
+
+        console.log("AmountOut:", amountOut);
+
+        // Validate user balance is greater than or equal to amountOutMin_
+        uint256 daiBalance = IERC20(DAI).balanceOf(user);
+        assertGe(daiBalance, amountOutMin_, "DAI balance too low");
+    }
+
+    /// @notice Tests that `swapTokensV3` reverts if the swap path is too short
+    function testSwapTokensV3ShouldRevertIfPathIsTooShort() public {
+        deal(USDT, user, 100 * 1e6);
+        uint256 amountIn_ = 100e6; // 100 USDT
+        uint256 amountOutMin_ = 1e18; // 1 DAI minimum
+        uint256 deadline_ = block.timestamp + 1 hours;
+
+        // Make a too short path so that the tx reverts
+        address[] memory path_ = new address[](1);
+        path_[0] = USDT;
+
+        // Approve the contract to spend user's tokens
+        vm.prank(user);
+        IERC20(USDT).approve(address(app), amountIn_);
+
+        // Execute swap with a too short path
+        vm.expectRevert("Path too short");
+        app.swapTokensV3(amountIn_, amountOutMin_, path_, user, deadline_);
     }
 }

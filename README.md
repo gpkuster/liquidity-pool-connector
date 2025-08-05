@@ -1,6 +1,6 @@
-# Liquidity Pool Connector
+# 🔌 Liquidity Pool Connector
 
-This project is designed to facilitate token swaps and manage liquidity in a Uniswap V2-compatible decentralized exchange. It is optimized for usage on networks like Arbitrum.
+This project is designed to facilitate token swaps and manage liquidity in a Uniswap V2-compatible decentralized exchange. It is optimized for usage on networks like Arbitrum (migration to Uniswap V3 in progress 📈).
 
 ## 📜 Overview
 
@@ -77,7 +77,7 @@ forge coverage --fork-url https://arb1.arbitrum.io/rpc
 
 Here are some possible improvements and extensions for the Liquidity Pool Connector:
 
-### 🔄 Upgrade to Uniswap V4
+### 🔄 Upgrade to Uniswap V4 (migration to v3 in progress since v4 is still under development)
 
 - **Migration to Uniswap V4 architecture** to benefit from:
   - Singleton contract design (reduced gas costs)
