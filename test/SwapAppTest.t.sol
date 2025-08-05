@@ -115,7 +115,6 @@ contract SwapAppTest is Test {
         assertApproxEqAbs(amountA, expectedA, toleranceA, "amountA out of range");
         assertApproxEqAbs(amountB, expectedB, toleranceB, "amountB out of range");
 
-
         vm.stopPrank();
     }
 }
