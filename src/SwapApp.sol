@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import "./interfaces/IV2Router02.sol";
+import "./interfaces/IV3SwapRouter.sol";
 import "./interfaces/IFactory.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -14,6 +15,7 @@ contract SwapApp {
 
     address public v2Router02Address;
     address public uniswapFactoryAddress;
+    address public swapRouterV3Address;
     address public USDT;
     address public DAI;
 
@@ -34,9 +36,16 @@ contract SwapApp {
     /// @param uniswapFactoryAddress_ Address of the factory contract
     /// @param USDT_ Address of the USDT token
     /// @param DAI_ Address of the DAI token
-    constructor(address v2Router02Address_, address uniswapFactoryAddress_, address USDT_, address DAI_) {
+    constructor(
+        address v2Router02Address_,
+        address swapRouterV3Address_,
+        address uniswapFactoryAddress_,
+        address USDT_,
+        address DAI_
+    ) {
         v2Router02Address = v2Router02Address_;
         uniswapFactoryAddress = uniswapFactoryAddress_;
+        swapRouterV3Address = swapRouterV3Address_;
         USDT = USDT_;
         DAI = DAI_;
     }
@@ -65,6 +74,55 @@ contract SwapApp {
         emit SwapTokens(path_[0], path_[path_.length - 1], amountIn_, amountsOut[amountsOut.length - 1]);
 
         return amountsOut[amountsOut.length - 1];
+    }
+
+    /// @notice Swaps tokens through Uniswap V3 using a specified path
+    /// @dev The caller must approve this contract to spend `amountIn_` of the input token beforehand
+    /// @param amountIn_ The amount of input tokens to swap
+    /// @param amountOutMin_ The minimum acceptable amount of output tokens (slippage protection)
+    /// @param path_ The path of tokens to swap through (at least two addresses)
+    /// @param to_ The address to receive the output tokens
+    /// @param deadline_ The timestamp by which the swap must be completed
+    /// @return amountOut The amount of output tokens received from the swap
+    /// @custom:require `path_` length must be at least 2, otherwise it reverts with "Path too short"
+    function swapTokensV3(
+        uint256 amountIn_,
+        uint256 amountOutMin_,
+        address[] memory path_, // e.g. [USDT, DAI]
+        address to_,
+        uint256 deadline_
+    ) public returns (uint256 amountOut) {
+        require(path_.length >= 2, "Path too short");
+
+        IERC20(path_[0]).safeTransferFrom(msg.sender, address(this), amountIn_);
+        IERC20(path_[0]).approve(swapRouterV3Address, amountIn_);
+
+        bytes memory encodedPath = _encodePath(path_);
+
+        IV3SwapRouter.ExactInputParams memory params = IV3SwapRouter.ExactInputParams({
+            path: encodedPath,
+            recipient: to_,
+            deadline: deadline_,
+            amountIn: amountIn_,
+            amountOutMinimum: amountOutMin_
+        });
+
+        amountOut = IV3SwapRouter(swapRouterV3Address).exactInput(params);
+
+        emit SwapTokens(path_[0], path_[path_.length - 1], amountIn_, amountOut);
+    }
+
+    /// @notice Encodes a Uniswap V3 multihop swap path
+    /// @dev Assumes a fixed fee tier of 0.3% (3000) between each hop
+    /// @param path An array of token addresses representing the swap path (at least two tokens)
+    /// @return encoded The bytes-encoded path used by the V3 router
+    /// @custom:require The path length must be at least 2, otherwise it reverts with "Invalid path"
+    function _encodePath(address[] memory path) internal pure returns (bytes memory encoded) {
+        encoded = abi.encodePacked(path[0]);
+        for (uint256 i = 1; i < path.length; i++) {
+            // For simplicity, we hardcode a 0.3% fee tier (3000)
+            encoded = bytes.concat(encoded, bytes3(uint24(3000)), bytes20(path[i]));
+        }
     }
 
     /// @notice Swaps tokens and adds liquidity to the USDT/DAI pool
