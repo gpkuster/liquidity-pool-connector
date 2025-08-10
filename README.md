@@ -60,6 +60,9 @@ forge test -vvvv --fork-url https://arb1.arbitrum.io/rpc
 forge coverage --fork-url https://arb1.arbitrum.io/rpc
 ```
 
+### Github Workflow
+⚠️ Please note if forking: There's a secret in this project's config called `FORK_URL` that you need to set in order to make the workflow pass at the [test step](https://github.com/gpkuster/liquidity-pool-connector/blob/31f3b29093b9b2510ab45d7812a9d170601d90b7/.github/workflows/test.yml#L37)
+
 ## 🔐 Security Notes
 
 - This contract assumes the use of trusted tokens and router contracts.
